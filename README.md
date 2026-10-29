@@ -1,6 +1,6 @@
 # Docker Guestbook
 
-![CI](https://github.com/emrullahtasci/docker-guestbook/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/emrullahtasci/guestbook/actions/workflows/ci.yml/badge.svg)
 
 A multi-container application environment built with Docker and Linux tooling.
 Visitors leave their name and a message through a Flask web app; messages are
@@ -39,8 +39,8 @@ the service it depends on is healthy.
 ## Run it
 
 ```bash
-git clone https://github.com/emrullahtasci/docker-guestbook.git
-cd docker-guestbook
+git clone https://github.com/emrullahtasci/guestbook.git
+cd guestbook
 cp .env.example .env          # change the passwords
 docker compose up -d --build
 ```
@@ -71,7 +71,7 @@ tail -f logs/app.log
 controlled with `systemctl`. The unit expects the project in `/opt/myapp`:
 
 ```bash
-sudo git clone https://github.com/emrullahtasci/docker-guestbook.git /opt/myapp
+sudo git clone https://github.com/emrullahtasci/guestbook.git /opt/myapp
 sudo cp /opt/myapp/myapp.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now myapp
