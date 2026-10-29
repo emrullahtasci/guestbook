@@ -2,59 +2,60 @@
 
 ![CI](https://github.com/emrullahtasci/guestbook/actions/workflows/ci.yml/badge.svg)
 
-A multi-container application environment built with Docker and Linux tooling.
-Visitors leave their name and a message through a Flask web app; messages are
-stored in PostgreSQL, served through an Nginx reverse proxy, and can be browsed
-in Adminer. On the Linux side, the stack runs as a systemd service and a cron
-job archives logs and backs up the database every 2 minutes.
+Docker ve Linux araçlarıyla kurulmuş, çok container'lı bir uygulama ortamı.
+Ziyaretçiler Flask web uygulamasındaki formdan isim ve mesaj bırakır. Mesajlar
+PostgreSQL'e kaydedilir, uygulama Nginx reverse proxy arkasından sunulur ve
+veritabanı Adminer ile görüntülenebilir. Linux tarafında tüm ortam bir systemd
+servisi olarak çalışır, bir cron görevi de 2 dakikada bir logları arşivleyip
+veritabanının yedeğini alır.
 
-Final project for the Acunmedya Akademi DevOps bootcamp.
+Acunmedya Akademi DevOps Bootcamp final projesidir.
 
-## Architecture
+## Mimari
 
 ```mermaid
 flowchart LR
-    User((Browser)) -->|:80| Nginx
-    Nginx -->|reverse proxy| Web[Flask app<br/>gunicorn]
+    User((Tarayıcı)) -->|:80| Nginx
+    Nginx -->|reverse proxy| Web[Flask uygulaması<br/>gunicorn]
     Web --> DB[(PostgreSQL)]
     User -->|:8080| Adminer --> DB
-    Web -->|writes| Log[logs/app.log]
-    Cron[cron-job.sh<br/>every 2 min] -->|copies| Log
+    Web -->|yazar| Log[logs/app.log]
+    Cron[cron-job.sh<br/>2 dakikada bir] -->|kopyalar| Log
     Cron -->|pg_dump| DB
 ```
 
-## Services
+## Servisler
 
-| Service | Image | Port | Role |
+| Servis | Image | Port | Görevi |
 | --- | --- | --- | --- |
-| `nginx` | nginx:1.27-alpine | 80 | Reverse proxy; the only way into the web app |
-| `web` | built from `Dockerfile` | internal 5000 | Flask app: form + message list, logs to `logs/app.log` |
-| `db` | postgres:16-alpine | internal 5432 | Stores the `messages(id, name, message, created_at)` table |
-| `adminer` | adminer:4.8.1 | 8080 | Web UI to browse the database |
+| `nginx` | nginx:1.27-alpine | 80 | Reverse proxy; web uygulamasına tek giriş noktası |
+| `web` | `Dockerfile`'dan build | iç 5000 | Flask uygulaması: form + mesaj listesi, `logs/app.log` dosyasına log yazar |
+| `db` | postgres:16-alpine | iç 5432 | `messages(id, name, message, created_at)` tablosunu saklar |
+| `adminer` | adminer:4.8.1 | 8080 | Veritabanını tarayıcıdan görüntüleme arayüzü |
 
-All services share the default Compose network and reach each other by service
-name (`web`, `db`). Containers have healthchecks, and each one starts only after
-the service it depends on is healthy.
+Tüm servisler aynı Compose ağındadır ve birbirlerine servis adıyla (`web`, `db`)
+ulaşır. Her container'ın healthcheck'i vardır; bir servis, bağlı olduğu servis
+sağlıklı olmadan başlamaz.
 
-## Run it
+## Çalıştırma
 
 ```bash
 git clone https://github.com/emrullahtasci/guestbook.git
 cd guestbook
-cp .env.example .env          # change the passwords
+cp .env.example .env          # şifreleri değiştir
 docker compose up -d --build
 ```
 
-- Web app: http://localhost
-- Adminer: http://localhost:8080 (System: PostgreSQL, Server: `db`, user/password/database from `.env`)
+- Web uygulaması: http://localhost
+- Adminer: http://localhost:8080 (Sistem: PostgreSQL, Sunucu: `db`, kullanıcı/şifre/veritabanı `.env` dosyasından)
 
-If port 80 or 8080 is already in use, change `WEB_PORT` or `ADMINER_PORT` in `.env`.
+80 veya 8080 portu doluysa `.env` dosyasındaki `WEB_PORT` veya `ADMINER_PORT` değerini değiştir.
 
-Stop everything with `docker compose down` (add `-v` to also delete the database).
+Her şeyi durdurmak için `docker compose down` (veritabanını da silmek için `-v` ekle).
 
-## Logging
+## Loglama
 
-The Flask app writes to `logs/app.log`, which is bind-mounted to the host:
+Flask uygulaması host'a bind mount ile bağlı `logs/app.log` dosyasına log yazar:
 
 ```bash
 tail -f logs/app.log
@@ -65,10 +66,11 @@ tail -f logs/app.log
 2026-10-29 14:03:47,522 [INFO] New message saved from Emrullah
 ```
 
-## Run as a systemd service (Linux)
+## systemd servisi olarak çalıştırma (Linux)
 
-`myapp.service` manages the Compose stack, so it starts on boot and can be
-controlled with `systemctl`. The unit expects the project in `/opt/myapp`:
+`myapp.service` Compose ortamını yönetir; böylece proje sunucu açılışında
+otomatik başlar ve `systemctl` ile kontrol edilir. Servis dosyası projenin
+`/opt/myapp` klasöründe olmasını bekler:
 
 ```bash
 sudo git clone https://github.com/emrullahtasci/guestbook.git /opt/myapp
@@ -78,19 +80,20 @@ sudo systemctl enable --now myapp
 sudo systemctl status myapp
 ```
 
-`sudo systemctl stop myapp` runs `docker compose down`.
+`sudo systemctl stop myapp` komutu `docker compose down` çalıştırır.
 
-## Cron job: log archive + database backup
+## Cron görevi: log arşivi + veritabanı yedeği
 
-`cron-job.sh` copies `logs/app.log` into `log_archive/` and saves a gzipped
-`pg_dump` into `backups/`, keeping the newest 30 files in each. Add it to cron
-with `crontab -e`:
+`cron-job.sh`, `logs/app.log` dosyasını `log_archive/` klasörüne kopyalar ve
+gzip ile sıkıştırılmış bir `pg_dump` yedeğini `backups/` klasörüne kaydeder.
+Disk dolmasın diye her klasörde en yeni 30 dosya tutulur. `crontab -e` ile
+cron'a eklemek için:
 
 ```
 */2 * * * * /opt/myapp/cron-job.sh >> /opt/myapp/logs/cron.log 2>&1
 ```
 
-Restore a backup:
+Bir yedeği geri yüklemek için:
 
 ```bash
 gunzip -c backups/db_20261029_170348.sql.gz | docker compose exec -T db psql -U guestbook guestbook
@@ -98,37 +101,37 @@ gunzip -c backups/db_20261029_170348.sql.gz | docker compose exec -T db psql -U 
 
 ## CI
 
-GitHub Actions runs on every push:
+GitHub Actions her push'ta çalışır:
 
-1. **test**: pytest for the Flask app (form, validation, logging, health check)
-2. **stack**: starts all four containers and checks that the app answers through
-   Nginx, Adminer is up, the log file is written and the cron script produces a
-   log archive and a database backup
+1. **test**: Flask uygulaması için pytest (form, doğrulama, loglama, health check)
+2. **stack**: dört container'ı ayağa kaldırır; uygulamanın Nginx üzerinden cevap
+   verdiğini, Adminer'ın açıldığını, log dosyasının yazıldığını ve cron
+   script'inin log arşivi ile veritabanı yedeği oluşturduğunu kontrol eder
 
-## Screenshots
+## Ekran görüntüleri
 
-**Web app** (through Nginx, http://localhost)
+**Web uygulaması** (Nginx üzerinden, http://localhost)
 
-![Web app](screenshots/web-app.png)
+![Web uygulaması](screenshots/web-app.png)
 
-**Adminer** showing the `messages` table
+**Adminer**: `messages` tablosu
 
 ![Adminer](screenshots/adminer.png)
 
-## Project layout
+## Proje yapısı
 
 ```
 .
-├── app/                  # Flask application
-│   ├── __init__.py       # app factory + file logging
-│   ├── models.py         # messages table
-│   ├── routes.py         # form, list, /health
+├── app/                  # Flask uygulaması
+│   ├── __init__.py       # uygulama oluşturma + dosyaya loglama
+│   ├── models.py         # messages tablosu
+│   ├── routes.py         # form, liste, /health
 │   └── templates/index.html
-├── nginx/nginx.conf      # reverse proxy config
+├── nginx/nginx.conf      # reverse proxy ayarları
 ├── docker-compose.yml
 ├── Dockerfile
-├── myapp.service         # systemd unit
-├── cron-job.sh           # log archive + DB backup
+├── myapp.service         # systemd servis dosyası
+├── cron-job.sh           # log arşivi + veritabanı yedeği
 ├── logs/  log_archive/  backups/
 ├── screenshots/
 └── tests/
