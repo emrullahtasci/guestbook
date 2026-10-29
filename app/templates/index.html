@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guestbook</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #222; background: #f6f7f9; }
+    h1 { margin-bottom: 4px; }
+    .subtitle { color: #666; margin-top: 0; }
+    form, .message { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; }
+    label { display: block; font-weight: 600; margin: 8px 0 4px; }
+    input, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; box-sizing: border-box; }
+    textarea { min-height: 80px; }
+    button { margin-top: 12px; padding: 8px 20px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; font: inherit; cursor: pointer; }
+    .error { color: #b91c1c; }
+    .message { margin-top: 12px; }
+    .meta { color: #666; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+  <h1>Guestbook</h1>
+  <p class="subtitle">Flask + PostgreSQL behind Nginx, all running in Docker.</p>
+
+  {% for msg in get_flashed_messages() %}
+    <p class="error">{{ msg }}</p>
+  {% endfor %}
+
+  <form method="post">
+    <label for="name">Name</label>
+    <input id="name" name="name" maxlength="100" required>
+    <label for="message">Message</label>
+    <textarea id="message" name="message" required></textarea>
+    <button type="submit">Save</button>
+  </form>
+
+  <h2>Messages ({{ messages|length }})</h2>
+  {% for m in messages %}
+    <div class="message">
+      <strong>{{ m.name }}</strong>
+      <span class="meta">· {{ m.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+      <p>{{ m.message }}</p>
+    </div>
+  {% else %}
+    <p class="meta">No messages yet. Be the first!</p>
+  {% endfor %}
+</body>
+</html>

@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest -v
+
+  stack:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The runner user is not uid 1000, so let the container's appuser write logs/
+      - name: Make logs folder writable
+        run: chmod 777 logs
+
+      - name: Start all services
+        run: docker compose up -d --build --wait
+
+      - name: Web app answers through Nginx
+        run: |
+          curl --fail http://localhost/health
+          curl --fail -X POST -d "name=CI&message=Hello from GitHub Actions" http://localhost/
+          curl --fail http://localhost/ | grep "Hello from GitHub Actions"
+
+      - name: Adminer is reachable
+        run: curl --fail http://localhost:8080 | grep -i adminer
+
+      - name: App writes its log file
+        run: grep "New message saved from CI" logs/app.log
+
+      - name: Cron script archives the log and backs up the database
+        run: |
+          ./cron-job.sh
+          ls log_archive/app_*.log
+          zcat backups/db_*.sql.gz | grep "Hello from GitHub Actions"
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v
